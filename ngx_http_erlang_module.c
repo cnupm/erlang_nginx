@@ -144,6 +144,7 @@ static ngx_int_t ngx_http_erlang_handler(ngx_http_request_t *r) {
                 retbody = erl_element(3, emsg.msg);
                 int status_code = ERL_INT_VALUE(status);
                 char *body = (char *) ERL_BIN_PTR(retbody);
+                int body_length = strlen(body);
                 
                 // TODO: Set status code from response tuple
                 if (status_code == 200) {
@@ -161,12 +162,12 @@ static ngx_int_t ngx_http_erlang_handler(ngx_http_request_t *r) {
                 out.next = NULL;
 
                 b->pos = (u_char *) body;
-                b->last = (u_char *) body + sizeof(body);
+                b->last = (u_char *) body + body_length;
                 b->memory = 1;
                 b->last_buf = 1;
 
                 r->headers_out.status = NGX_HTTP_OK;
-                r->headers_out.content_length_n = sizeof(body);
+                r->headers_out.content_length_n = body_length;
                 r->headers_out.last_modified_time = 23349600;
 
                 rc = ngx_http_send_header(r);
