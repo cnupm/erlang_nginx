@@ -4,7 +4,7 @@ EI_VSN=`ls -t $ERL_ROOT/lib | grep erl_interface | cut -d"-" -f2 | head -n1`
 ngx_feature="erlang"
 ngx_feature_name=
 ngx_feature_run=no
-ngx_feature_incs="#include <Python.h>"
+ngx_feature_incs=
 ngx_feature_path="$ERL_ROOT/lib/erl_interface-$EI_VSN"
 ngx_feature_libs="-L$ERL_ROOT/lib/erl_interface-$EI_VSN/lib -lerl_interface -lei"
 . auto/feature
