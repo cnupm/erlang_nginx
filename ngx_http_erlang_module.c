@@ -84,10 +84,6 @@ static ngx_int_t ngx_http_erlang_handler(ngx_http_request_t *r) {
     ngx_buf_t *b;
     ngx_chain_t out;
 
-    struct in_addr addr;
-    // TODO: Get this from nginx.
-    addr.s_addr = inet_addr("192.168.100.94");
-
     // TODO: Set this during the erlang message recieve loop.
     r->headers_out.content_type.len = sizeof("text/plain") - 1;
     r->headers_out.content_type.data = (u_char *) "text/plain";
