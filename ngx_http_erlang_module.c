@@ -45,6 +45,8 @@ static char *ngx_http_erlang_merge_loc_conf(ngx_conf_t *cf, void *parent, void *
 
 typedef struct {
      ngx_str_t node;
+     ngx_str_t secret;
+     ngx_str_t registered;
 } ngx_http_erlang_loc_conf_t;
 
 static ngx_command_t  ngx_http_erlang_commands[] = {
@@ -62,6 +64,22 @@ static ngx_command_t  ngx_http_erlang_commands[] = {
         ngx_conf_set_str_slot,
         NGX_HTTP_LOC_CONF_OFFSET,
         offsetof(ngx_http_erlang_loc_conf_t, node),
+        NULL
+    },
+    {
+        ngx_string("erlang_secret"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_str_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_http_erlang_loc_conf_t, secret),
+        NULL
+    },
+    {
+        ngx_string("erlang_registered"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_str_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_http_erlang_loc_conf_t, registered),
         NULL
     },
     ngx_null_command
@@ -106,6 +124,16 @@ static ngx_int_t ngx_http_erlang_handler(ngx_http_request_t *r) {
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
     
+    if (!conf->secret.len) {
+        fprintf(stderr, "erlang_secret not specified in configuration.\n");
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
+    
+    if (!conf->registered.len) {
+        fprintf(stderr, "erlang_registered not specified in configuration.\n");
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
+    
     // TODO: Set this during the erlang message recieve loop.
     r->headers_out.content_type.len = sizeof("text/plain") - 1;
     r->headers_out.content_type.data = (u_char *) "text/plain";
@@ -119,8 +147,7 @@ static ngx_int_t ngx_http_erlang_handler(ngx_http_request_t *r) {
     
     erl_init(NULL, 0);
     
-    // TODO: Add secret to config
-    if (erl_connect_init(1, "secret", 0) == -1) {
+    if (erl_connect_init(1, (char *) conf->secret.data, 0) == -1) {
         erl_err_quit("erl_connect_init");
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
@@ -138,8 +165,7 @@ static ngx_int_t ngx_http_erlang_handler(ngx_http_request_t *r) {
     arr[1] = erl_mk_int(r->method); 
     arr[2] = erl_mk_string((const char *) r->uri.data);
     emsg2 = erl_mk_tuple(arr, 3);
-    // TODO: Set the registered process that is the handler in the config.
-    erl_reg_send(fd, "demo_handler", emsg2);
+    erl_reg_send(fd, (char *) conf->registered.data, emsg2);
 
     // TODO: Find a way to fail gracefully if a message isn't recieved within
     //       a specific amount of time.
@@ -232,6 +258,8 @@ static char *ngx_http_erlang_merge_loc_conf(ngx_conf_t *cf, void *parent, void *
     ngx_http_erlang_loc_conf_t *conf = child;
     
     ngx_conf_merge_str_value(conf->node, prev->node, "");
+    ngx_conf_merge_str_value(conf->secret, prev->secret, "");
+    ngx_conf_merge_str_value(conf->registered, prev->registered, "");
     
     return NGX_CONF_OK;
 }

@@ -30,6 +30,8 @@ Results in this output in Erlang:
     location /app/ {
         erlang;
         erlang_node handler@localhost;
+        erlang_secret secret;
+        erlang_registered demo_handler;
     }
 
 ## TODO
