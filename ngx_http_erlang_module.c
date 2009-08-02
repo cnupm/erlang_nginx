@@ -40,6 +40,12 @@ extern short erl_thiscreation(void);
 #define SELF(fd) erl_mk_pid(erl_thisnodename(),fd,0,erl_thiscreation())
 
 static char *ngx_http_erlang(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static void *ngx_http_erlang_create_loc_conf(ngx_conf_t *cf);
+static char *ngx_http_erlang_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
+
+typedef struct {
+     ngx_str_t node;
+} ngx_http_erlang_loc_conf_t;
 
 static ngx_command_t  ngx_http_erlang_commands[] = {
     {
@@ -50,18 +56,26 @@ static ngx_command_t  ngx_http_erlang_commands[] = {
         0,
         NULL
     },
+    {
+        ngx_string("erlang_node"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_str_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_http_erlang_loc_conf_t, node),
+        NULL
+    },
     ngx_null_command
 };
 
 static ngx_http_module_t  ngx_http_erlang_module_ctx = {
-    NULL,                          /* preconfiguration */
-    NULL,                          /* postconfiguration */
-    NULL,                          /* create main configuration */
-    NULL,                          /* init main configuration */
-    NULL,                          /* create server configuration */
-    NULL,                          /* merge server configuration */
-    NULL,                          /* create location configuration */
-    NULL                           /* merge location configuration */
+    NULL,                               /* preconfiguration */
+    NULL,                               /* postconfiguration */
+    NULL,                               /* create main configuration */
+    NULL,                               /* init main configuration */
+    NULL,                               /* create server configuration */
+    NULL,                               /* merge server configuration */
+    ngx_http_erlang_create_loc_conf,    /* create location configuration */
+    ngx_http_erlang_merge_loc_conf      /* merge location configuration */
 };
 
 ngx_module_t  ngx_http_erlang_module = {
@@ -84,6 +98,14 @@ static ngx_int_t ngx_http_erlang_handler(ngx_http_request_t *r) {
     ngx_buf_t *b;
     ngx_chain_t out;
 
+    ngx_http_erlang_loc_conf_t  *conf;
+    conf = ngx_http_get_module_loc_conf(r, ngx_http_erlang_module);
+    
+    if (!conf->node.len) {
+        fprintf(stderr, "erlang_node not specified in configuration.\n");
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
+    
     // TODO: Set this during the erlang message recieve loop.
     r->headers_out.content_type.len = sizeof("text/plain") - 1;
     r->headers_out.content_type.data = (u_char *) "text/plain";
@@ -103,9 +125,7 @@ static ngx_int_t ngx_http_erlang_handler(ngx_http_request_t *r) {
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
     
-    // TODO: Add node name to config
-    // TODO: Add node host to config
-    if ((fd = erl_connect("handler@localhost")) < 0) {
+    if ((fd = erl_connect((char *) conf->node.data)) < 0) {
         erl_err_quit("erl_connect");
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
@@ -185,9 +205,33 @@ static ngx_int_t ngx_http_erlang_handler(ngx_http_request_t *r) {
     return ngx_http_output_filter(r, &out);
 }
 
-static char * ngx_http_erlang(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
+static char *ngx_http_erlang(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
     ngx_http_core_loc_conf_t  *clcf;
     clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
     clcf->handler = ngx_http_erlang_handler;
+    
+    return NGX_CONF_OK;
+}
+
+
+static void *ngx_http_erlang_create_loc_conf(ngx_conf_t *cf)
+{
+    ngx_http_erlang_loc_conf_t  *conf;
+    
+    conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_erlang_loc_conf_t));
+    if (conf == NULL) {
+        return NGX_CONF_ERROR;
+    }
+    
+    return conf;
+}
+
+static char *ngx_http_erlang_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+{
+    ngx_http_erlang_loc_conf_t *prev = parent;
+    ngx_http_erlang_loc_conf_t *conf = child;
+    
+    ngx_conf_merge_str_value(conf->node, prev->node, "");
+    
     return NGX_CONF_OK;
 }

@@ -29,6 +29,7 @@ Results in this output in Erlang:
 
     location /app/ {
         erlang;
+        erlang_node handler@localhost;
     }
 
 ## TODO
