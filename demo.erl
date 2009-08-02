@@ -34,7 +34,7 @@ start() ->
 server() ->
     receive
         {Pid, Method, Uri} -> handler_request(Pid, Method, Uri);
-        X -> ok
+        _ -> ok
     end,
     demo:server().
 
@@ -45,5 +45,5 @@ server() ->
 %% @doc Process requests from nginx.
 handler_request(Pid, Method, Uri) ->
     io:format("{Pid, Method, Uri}: ~p~n", [{Pid, Method, Uri}]),
-    Pid ! {200, <<"This is a really cool test.">>},
+    Pid ! {200, [], <<"This is a really cool test.">>},
     ok.
